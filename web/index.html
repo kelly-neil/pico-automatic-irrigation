@@ -6,9 +6,11 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <link href='https://fonts.googleapis.com/css?family=Ubuntu' rel='stylesheet'>
         <link rel="stylesheet" href="style.css">
-        <script src="chart.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
         <script src="petite-vue.js"></script>
         <script src="main.js" defer></script>
+        <script src="livefetch.js" defer></script>
     </head>
     <body id="app">
         <div id="header">
@@ -16,22 +18,48 @@
         </div>
         
         <div id="content">
+            <div v-scope="Section('Live', 'See sensor readings in realtime.', 't_sect_live')"></div>
             <div v-scope="Section('Monitor', 'Monitor statistics over time.', 't_sect_monitor')"></div>
             <div v-scope="Section('Config', 'Change how your automatic irrgation will work.', 't_sect_config')"></div>
             <div v-scope="Section('Device', 'View current device information.', 't_sect_device')"></div>    
         </div>
 
-        <template id="t_sect_monitor">
-            Average by: 
-            <select v-bind="interval">
-                <option>Every second</option>
-                <option>Every minute</option>
-                <option>Every hour</option>
-                <option>Every day</option>
-            </select>
-            
-            <br>
+        <template id="t_sect_live">
+            <div id="vue_live" @vue:mounted="init()">
+                Soil Moisture: <b>{{ toPercent(data.moisture) + "%" }}</b> <br>
+                Temperature: <b>{{ data.temperature + "°C" }}</b> <br>
+                Humidity: <b>{{ data.humidity + "%" }}</b> <br>
+                <!--Motion Detection: {{ toReadablePIR(data.infrared) }} <br>
+                Battery level: {{ toPercent(data.battery) + "%" }} <br>
+                <small> Battery level readings are a rough estimate and do not always reflect actual battery level.</small>-->
+            </div>
+        </template>
 
+        <template id="t_sect_monitor">
+            Graph: <br>
+            <!--
+            <div v-if="loglist.loaded">
+                <select v-model="selection.monitor_day" @>
+                    <option v-for="day in loglist.data" v-bind:value="day">{{ day }}</option>
+                </select>
+            </div>
+            <div v-else>
+                Loading log list... please wait.
+            </div>
+
+            <canvas id="logChart"></canvas>
+            <div v-if="logfocus.status != 0">
+                <div v-if="logfocus.loaded">
+                </div>
+                <div v-else>
+                    Loading...
+                </div>
+            </div>
+            -->
+            <br>
+            Or view the logs (this will load another page): <br>
+            <a href="/data/logview">View now</a> <br>
+            <a href="/data/logdownload" target="_blank">Download .csv</a> (can be opened in excel) <br>
             
         </template>
 
@@ -40,16 +68,19 @@
         </template>
 
         <template id="t_sect_config">
-            Configure stuff here
+            Edit your configuration in the text field below. Once you're done, hit "Save" and your changes will be applied. <br>
+            <textarea v-model="cfg" rows="30"></textarea>
         </template>
 
 
         <template id="t_section">
-            <div id="section_title">
-                {{ title }} <br>
-                <small>{{ desc }}</small>
-            </div>
-            <div id="section_body" v-scope="{$template: '#'+t_content}">
+            <div v-scope="{expand: true, test: 'Hello'}" vonclick="expand=!expand">
+                <div id="section_title">
+                    {{ title }} <br>
+                    <small>{{ desc }}</small>
+                </div>
+                <div id="section_body" v-if="expand" v-scope="{$template: '#'+t_content}">
+                </div>
             </div>
         </template>
 

@@ -37,7 +37,7 @@ body {
 
 #content > div {
     width: 100%;
-    flex: 1 0 180px;
+    flex: 2 0 180px;
     background-color: var(--white);
     border-radius: 12px;
     overflow: hidden;
@@ -56,4 +56,8 @@ body {
 
 #section_body {
     padding: 10px
+}
+
+.collapsed {
+    
 }
