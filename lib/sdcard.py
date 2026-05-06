@@ -1,4 +1,11 @@
 """
+Copyright (c) 2013, 2014 micropython-lib contributors
+Source code: https://github.com/micropython/micropython-lib
+This file contains code from the micropython-lib repository under the MIT License.
+The full text of the license can be located in the NOTICE.md file.
+"""
+
+"""
 MicroPython driver for SD cards using SPI bus.
 
 Requires an SPI bus and a CS pin.  Provides readblocks and writeblocks
