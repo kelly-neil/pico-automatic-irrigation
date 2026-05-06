@@ -1,18 +1,8 @@
-{
-    "powersave": false,
-    
+{    
     "check_interval": 10,
-    "water_time": 10,
+    "water_time": 5,
     "water_threshold": 0.3,
     "water_pause": 120,
-
-    "check_temp": false,
-    "temp_min": 15,
-    "temp_max": 40,
-
-    "check_humidity": false,
-    "humidity_min": 40,
-    "humidity_max": 100,
     "wifi_creds": [
         ["dummy", "dummy"]
     ]

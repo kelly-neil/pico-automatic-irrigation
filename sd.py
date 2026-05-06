@@ -3,10 +3,12 @@ from lib import sdcard
 import machine
 import pins
 
-def start(ignored=False, mountpoint = "/sd"):
-    print("Starting SD Module...")
+MOUNT_POINT = const("/sd")
 
+def start(ignored=False):
     try:
+        print("Starting SD Module...")
+
         SD_SPI = machine.SPI(0,
             baudrate=1000000,
             polarity=0,
@@ -19,22 +21,31 @@ def start(ignored=False, mountpoint = "/sd"):
         
         SD_CARD = sdcard.SDCard(SD_SPI, pins.SD_CS)
         vfs = uos.VfsFat(SD_CARD)
-        uos.mount(vfs, mountpoint)
+        uos.mount(vfs, MOUNT_POINT)
         print("Mount operation completed.")
 
-        # Create a file and write something to it
-        with open("/sd/hello.txt", "w") as file:
-            file.write("Hello, SD World!\r\n")
-            file.write("This is a test\r\n")
+        import random
+        random = random.getrandbits(32).to_bytes(4, "little")
 
-        # Open the file we just created and read from it
-        with open("/sd/hello.txt", "r") as file:
+        # Check if writing and reading works
+        with open(MOUNT_POINT + "/test", "wb") as file:
+            file.write(random)
+
+        with open(MOUNT_POINT + "/test", "rb") as file:
             data = file.read()
-            print("Hello message: ", data)
+
+        if data != random:
+            raise Exception("File readback does not match!")
+        else:
+            print("Write and read was OK")
 
         return vfs
     except Exception as e:
-        print("SD Card reading process encountered an exception...")
-        print(e)
-        
+        if ignored:
+            print("Ignored module caught an error: ", e)
+        else:
+            raise e
 
+def isAvailable() -> bool:
+    from utils import files
+    return files.dirExists(MOUNT_POINT)

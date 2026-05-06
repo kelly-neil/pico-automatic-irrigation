@@ -34,6 +34,9 @@ def format_livedata(data: sensors_manager.LiveData | None) -> str:
         },
         "active": {
 
+        },
+        "extra": {
+
         }
     }
 
@@ -42,6 +45,8 @@ def format_livedata(data: sensors_manager.LiveData | None) -> str:
     if data == None:
         return json.dumps(output)
     
+    output["extra"] = data.extra_data
+
     sensors = output["sensors"]
     sensors["moisture"] = data.moisture
     sensors["temperature"] = data.temperature

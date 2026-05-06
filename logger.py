@@ -1,24 +1,39 @@
 import sensors_manager
 import time_manager
+import sd
 import os
+from utils import files
 
-# logger.py logs data according to the current day.
-# If the day changes, a new file will be created.
-# Logs are saved on a folder named /sd/log:
-# 2 logs are created for each day, namely:
-# YYYY-MM-DD-data.csv: logs sensor data that is monitored in intervals. 
-# YYYY-MM-DD-info.csv: logs descriptive information, including watering, errors, and other important information.
+LOG_DIR = const("/sd/log")
 
-LOG_DIR = const("/sd/log/")
-
+def start(ignored = False):
+    try:
+        print("Starting Logger Module")
+        if not sd.isAvailable():
+            raise ValueError("SD card not available")
+        
+        if not files.dirExists(LOG_DIR):
+            print("Log directory probably doesn't exist, creating it.")
+            os.mkdir("/sd/log")
+            
+        logInfo("INFO", "Logging is ready")
+    except Exception as e:
+        if ignored:
+            print("Ignored module caught an error: ", e)
+        else:
+            raise e
+        
 def now() -> tuple:
     return time_manager.getRealLocaltime()
 
 def logData(data: sensors_manager.LiveData):
+    
+    if not isAvailable(): return
+
     # CSV format is the following:
     # "Time","Moisture","Temperature","Humidity","Infrared","Watering?","BatteryLevel"
     out = ""
-    out += formatTime(now()) + ","
+    out += _formatTime(now()) + ","
 
     out += str(data.moisture) + ","
     out += str(data.temperature) + ","
@@ -27,15 +42,12 @@ def logData(data: sensors_manager.LiveData):
     out += str("n/a") + ","
     out += str(data.battery)
 
-    nametarget = LOG_DIR + formatDate(now()) + "-data.csv"
-
-    print("logData called: " + nametarget)
-    print("Output: " + out)
+    nametarget = LOG_DIR + "/" + _formatDate(now()) + "-data.csv"
 
     try:
         os.stat(nametarget)
     except OSError:
-        createDataFile(now())
+        _createDataFile(now())
         logInfo("INFO", "Created data file")
 
     file = open(nametarget, "a")
@@ -44,18 +56,21 @@ def logData(data: sensors_manager.LiveData):
     file.close()
 
 def logInfo(tag: str, msg: str):
+
+    if not isAvailable(): return
+    
     out = ""
-    out += "[{}] ".format(formatTime(now()))
+    out += "[{}] ".format(_formatTime(now()))
     out += " {} - ".format(tag)
     out += msg
 
-    nametarget = LOG_DIR + formatDate(now()) + "-info.csv"
+    nametarget = LOG_DIR + "/" + _formatDate(now()) + "-info.csv"
     print("logInfo called: " + nametarget)
 
     try:
         os.stat(nametarget)
     except OSError:
-        createInfoFile(now())
+        _createInfoFile(now())
         logInfo("INFO", "Created info file")
 
     file = open(nametarget, "a")
@@ -63,18 +78,20 @@ def logInfo(tag: str, msg: str):
     file.write("\n")
     file.close()
 
-def formatTime(time: tuple) -> str:
+def _formatTime(time: tuple) -> str:
     return "{3:02d}:{4:02d}:{5:02d}".format(*time)
 
-def formatDate(date: tuple) -> str:
+def _formatDate(date: tuple) -> str:
     return str(date[0]) + "-" + str(date[1]) + "-" + str(date[2])
 
 
-def createDataFile(date: tuple):
-    filename = formatDate(date) + "-data.csv"
+def _createDataFile(date: tuple):
+    if not isAvailable(): return
+
+    filename = _formatDate(date) + "-data.csv"
 
     print("createDataFile called: " + filename)
-    file = open(LOG_DIR + filename, "a")
+    file = open(LOG_DIR + "/" + filename, "a")
     template = open("template.csv", "r")
 
     print("Reading template: " + template.read())
@@ -82,20 +99,15 @@ def createDataFile(date: tuple):
     file.write("\n")
     file.close()
     
-def createInfoFile(date: tuple):
-    filename = formatDate(date) + "-info.csv"
+def _createInfoFile(date: tuple):
+    if not isAvailable(): return
+
+    filename = _formatDate(date) + "-info.csv"
     print("createInfoFile called: " + filename)
-    file = open(LOG_DIR + filename, "w")
+    file = open(LOG_DIR + "/" + filename, "w")
     file.close()
 
-def start():
-    print("Starting Logger Module")
 
-    try:
-        os.stat("/sd/log")
-    except OSError:
-        print("Log directory probably doesn't exist, creating it.")
-        os.chdir("sd")
-        os.mkdir("log")
-        os.chdir("/")
-    logInfo("INFO", "Logging is ready")
+def isAvailable() -> bool:
+    import sd
+    return sd.isAvailable()

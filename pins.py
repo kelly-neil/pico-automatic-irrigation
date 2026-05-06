@@ -20,7 +20,10 @@ MOIST_O = Pin(26, Pin.OUT)
 MOIST_DATA = ADC(Pin(27))
 
 # Relay module
-RELAY_SIGNAL = Pin(2, Pin.OUT)
+# 
+# "GPIOs 0-8, 14, and 15 will appear high at boot. The other GPIOs will appear low."
+# https://forums.raspberrypi.com/viewtopic.php?t=118446
+RELAY_SIGNAL = Pin(10, Pin.OUT)
 
 # SD Card module
 SD_CS = Pin(17, Pin.OUT)
@@ -31,6 +34,11 @@ SD_RX = Pin(16)
 # Battery Voltage Reading
 BATT_I = ADC(Pin(28))
 
+# Voltage Divider Parameters
+DIVIDER = 1 / 4.3
+MIN18650 = const(3.2)
+MAX18650 = const(4.2)
+
 _moisture_feed = []
 
 def solveOnboardTemp():
@@ -39,9 +47,6 @@ def solveOnboardTemp():
 def solveBatteryLevel() -> float:
     # Resistor 1 is 3.3K, Resistor 2 is 1K
     # This means the output voltage would be 7.4V * 0.2325 = 1.725V
-    DIVIDER = const(1 / 4.3)
-    MIN18650 = const(3.2)
-    MAX18650 = const(4.2)
 
     voltage_read = (BATT_I.read_u16() / 65535) * 3.3
     real_voltage = voltage_read / DIVIDER

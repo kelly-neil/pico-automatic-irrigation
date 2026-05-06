@@ -4,7 +4,6 @@ import time
 import struct
 import machine
 
-
 from machine import Pin
 
 NTP_DELTA = 2208988800

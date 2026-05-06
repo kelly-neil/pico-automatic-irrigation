@@ -3,12 +3,13 @@ import gc
 from phew import connect_to_wifi, server
 import phew
 import phew.server
-import sensors_json
+import json_handler
 import asyncio
 import time
 import json
 import random
 import logger
+import cfg
 from sensors_manager import SensorLoopManager
 web_path = "/web"
 
@@ -43,6 +44,18 @@ async def run(stopSignal, loop: SensorLoopManager):
             result = loop.last_result
             return "data: {}\n\n".format(sensors_json.format_livedata(result))
     """
+
+    """
+    @server.route("/data/live", methods=["GET"])
+    def data(request):
+        print("Data request was received")
+        #return sensors_json.fetch_live_data(), 200
+        return server.Response(SSELiveGenerator(), status=200, headers={
+            "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+            "Connection": "keep-alive",}
+        )
+    """
     
     def returnCSVResponse(file, filename: str = "data.csv", downloaded = False) -> server.Response:
         headers = {}
@@ -75,6 +88,8 @@ async def run(stopSignal, loop: SensorLoopManager):
             ctype = "text/html"
         elif abspath.endswith(".js"):
             ctype = "application/javascript"
+        elif abspath.endswith(".json"):
+            ctype = "application/json"
         elif abspath.endswith(".css"):
             ctype = "text/css"
         elif abspath.endswith(".png"):
@@ -109,54 +124,48 @@ async def run(stopSignal, loop: SensorLoopManager):
             asyncio.create_task(loop.water())
             out += "Watering... default settings used"
 
-        return "Watering", 200
-
-    @server.route("/data/live", methods=["GET"])
-    def data(request):
-        print("Data request was received")
-        #return sensors_json.fetch_live_data(), 200
-        return server.Response(SSELiveGenerator(), status=200, headers={
-            "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-            "Connection": "keep-alive",}
-        )
+        return out, 200
 
     @server.route("/data/liveonce", methods=["GET"])
     def dataonce(request):
-        print("Data request was received")
         result = loop.last_result
-        return sensors_json.format_livedata(result), 200
+        return json_handler.format_livedata(result), 200
     
     @server.route("/data/logview", methods=["GET"])
     def logview(request):
         if "file" in request.query.keys():
             target = request.query["file"]
         else:
-            target = logger.formatDate(logger.now())
+            target = logger._formatDate(logger.now())
 
         return server.redirect("/data/logview/" + target + "-data.csv")
     
     @server.route("/data/logview/<path>", methods=["GET"])
     def logview_file(request, path):
-        path = logger.LOG_DIR + path
-        print("Attempt file fetch: ", path)
-        file = open(path, "rb", 1024)
-        return returnCSVResponse(file, downloaded=False)
+        path = logger.LOG_DIR + "/" + path
+        try:
+            print("Attempt file fetch: ", path)
+            file = open(path, "rb")
+            return returnCSVResponse(file, downloaded=False)
+        except Exception as e:
+            return "Error reading", 500
     
     @server.route("/data/logdownload", methods=["GET"])
     def logdownload(request):
         if "file" in request.query.keys():
             target = request.query["file"]
         else:
-            target = logger.formatDate(logger.now())
+            target = logger._formatDate(logger.now())
+            
 
         return server.redirect("/data/logdownload/" + target + "-data.csv")
     
     @server.route("/data/logdownload/<path>", methods=["GET"])
     def logdownload_file(request, path):
-        file = open(logger.LOG_DIR + path, "rb", 1024)
+        file = open(logger.LOG_DIR + "/" + path, "rb", 1024)
         return returnCSVResponse(file, path, True)
     
+    """
     @server.route("/data/monitor", methods=["GET"])
     def monitor(request):
         if "file" in request.query.keys():
@@ -173,7 +182,7 @@ async def run(stopSignal, loop: SensorLoopManager):
                 }],
             }
             target = request.query["file"]
-            file = open(logger.LOG_DIR + target, "rb", 1024)
+            file = open(logger.LOG_DIR + "/" + target, "rb", 1024)
 
             # read the file line by line
             while True:
@@ -182,12 +191,10 @@ async def run(stopSignal, loop: SensorLoopManager):
                     break
                 line = line.decode("utf-8")
                 line = line.split(",")
-                """
                 out["time"].append(line[0])
                 out["moisture"].append(line[1])
                 out["temperature"].append(line[2])
                 out["humidity"].append(line[3])
-                """
                 out["moisture"][0]["data"].append({"x": line[0], "y": line[1]})
                 out["temperature"][0]["data"].append({"x": line[0], "y": line[2]})
                 out["humidity"][0]["data"].append({"x": line[0], "y": line[3]})
@@ -205,6 +212,23 @@ async def run(stopSignal, loop: SensorLoopManager):
                 out["logs"].append(file)
 
             return json.dumps(out), 200
+    """
+
+
+    @server.route("/data/cfg", methods=["GET", "POST"])
+    def datacfg(request):
+        method = request.method
+        if method == "GET":
+            out = {}
+            out["cfg"] = cfg.cfg
+            return json.dumps(out), 200
+        elif method == "POST":
+            print("Post received")
+            try:
+                cfg.update(request.data)
+                return "OK", 200
+            except Exception as e:
+                return str(e), 500
 
     @server.catchall()
     def catchall(request):
@@ -216,5 +240,5 @@ async def run(stopSignal, loop: SensorLoopManager):
 
 async def wifi(ssid, password):
     web_ip = await connect_to_wifi(ssid, password, 10)
-    print("The web panel would be avaialbe at: http://" + str(web_ip))
+    print("Pico IP is " + str(web_ip))
     return web_ip

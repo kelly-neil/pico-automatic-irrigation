@@ -1,22 +1,27 @@
+import machine
 import time
-import _thread as thread
 import sensors_manager
 import asyncio
 import cfg
 import sd
 import logger
-# import sd card library
-
 
 from machine import Pin
 import os
-import pins
-from phew import server, connect_to_wifi
 import server_handler
+import pins
+
+### Choose which to ignore during startup. 
+
+# Ignored modules do not throw errors and will not prevent the device from starting up.
+IGNORE_SD = False # Requires IGNORE_CFG and IGNORE_LOGGER to be also True
+IGNORE_CFG = False
+IGNORE_LOGGER = False
+IGNORE_WIFI = False
 
 led = Pin("LED", Pin.OUT)
-
 signal_stop = False
+pins.setRelayState(False)
 
 async def blink():
     count = 0
@@ -33,7 +38,6 @@ async def blink_success():
         await asyncio.sleep(0.1)
 
 async def blink_alert():
-    print("Calling blink alert!")
     while True:
         led.on()
         await asyncio.sleep(0.05)
@@ -42,68 +46,67 @@ async def blink_alert():
 
 def onClose():
     led.off()
-    task = pins.allOff()
+    asyncio.run(pins.allOff())
     print("Everything has stopped.")
 
 async def main():
     global signal_stop
-
-    ### Choose which to ignore during startup. 
-
-    # Ignored modules do not throw errors and will not prevent the device from starting up.
-    # The onboard LED still flashes to indicate an error from an ignored module.
-    IGNORE_SD = False
-    IGNORE_CFG = False
-    IGNORE_LOGGER = False
-    IGNORE_WIFI = False
 
     ### Initialize pins
     asyncio.create_task(pins.allOn())
     led.high()
 
     ### Start essential modules
+    sd.start(IGNORE_SD)
     cfg.start(IGNORE_CFG)
-    sdcard = sd.start(IGNORE_SD)
 
     ### Connect to wifi
     task_blink = asyncio.create_task(blink())
-    
-    wifi_found = False
-    if cfg.has("good_network"):
-        print("Attempting to connect to good network first...")
-        good_network = cfg.get("good_network")
-        creds = cfg.get("wifi_creds")[good_network]
-        task_wifi = await server_handler.wifi(creds[0], creds[1])
-        if task_wifi != None:
-            wifi_found = True
-        else:
-            print("Timeout.")
-    else:
-        print("No good network found. Trying all networks...")
-
-    if not wifi_found:
-        index = 0
-        for creds in cfg.get("wifi_creds"):
-            print("Attempting to connect: " + str(creds))
+    try:
+        wifi_found = False
+        task_wifi = None
+        if cfg.has("good_network"):
+            print("Attempting to connect to good network first...")
+            good_network = cfg.get("good_network")
+            creds = cfg.get("wifi_creds")[good_network]
             task_wifi = await server_handler.wifi(creds[0], creds[1])
             if task_wifi != None:
                 wifi_found = True
-                break
-            print("Timeout.")
-            index += 1
-    
-        if not wifi_found:
-            task_blink.cancel()
-            print("Can't proceed! Not connected to a network!")
-            await blink_alert()
-            return
+            else:
+                print("Timeout.")
         else:
-            print("Remembering this network as good network.")
-            print("Index: ", index, ", Creds: ", cfg.get("wifi_creds")[index])
-            cfg.set("good_network", index)
-            cfg.save()
-    else:
-        print("Connected to good network...")
+            print("No good network found. Trying all networks...")
+
+        if not wifi_found:
+            index = 0
+            for creds in cfg.get("wifi_creds"):
+                print("Attempting to connect: " + str(creds))
+                task_wifi = await server_handler.wifi(creds[0], creds[1])
+                if task_wifi != None:
+                    wifi_found = True
+                    break
+                print("Timeout.")
+                index += 1
+        
+            if not wifi_found:
+                task_blink.cancel()
+                print("Can't proceed! Not connected to a network!")
+                await blink_alert()
+                return
+            else:
+                print("Remembering this network as good network.")
+                print("Index: ", index, ", Creds: ", cfg.get("wifi_creds")[index])
+                
+                cfg.set("good_network", index)
+                cfg.save()
+        else:
+            print("Connected to good network...")
+
+    except Exception as e:
+        if IGNORE_WIFI:
+            print("Ignored module caught an error: ", e)
+        else:
+            raise e
 
     ### Update time with an NTP
     if time.localtime()[0] == 2021:
@@ -119,7 +122,8 @@ async def main():
             return
 
     # Logging enabled
-    logger.start()
+    logger.start(IGNORE_LOGGER)
+    logger.logInfo("INFO", "Pico IP is " + str(task_wifi))
 
     ### Initialize sensors
     task_blink.cancel()
@@ -132,6 +136,8 @@ async def main():
     def sendStopSignal():
         global signal_stop
         signal_stop = True
+
+    machine.freq(64 * 1000000)
 
     ### Run the server
     master_stop = asyncio.create_task(server_handler.run(sendStopSignal, loop))

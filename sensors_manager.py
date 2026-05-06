@@ -3,6 +3,8 @@ import pins
 import asyncio
 import cfg
 import logger
+import time_manager
+import machine
 
 class LiveData():
     def __init__(self, 
@@ -29,6 +31,7 @@ class SensorLoopManager():
         self.last_result = None
         self.stop_loop = False
         self.water_allowed = True
+        self.last_watered = None
         
         if not debugDoNotLoop:
             asyncio.create_task(self.startLoop())
@@ -37,7 +40,6 @@ class SensorLoopManager():
     async def iterate(self) -> LiveData:
         try:
             live_humidty, live_temp, moisture = None, None, None
-            print("Sensors checking...")
 
             try:
                 ### Read the signals coming from the DHT22
@@ -55,6 +57,8 @@ class SensorLoopManager():
                 print(e)
                 await asyncio.sleep(3)
             
+            
+
             ### Read the moisture sensor by calling the function read_moisture().
             ### This function translates the signal coming from the moisture sensor.
             moisture_raw = read_moisture()
@@ -79,7 +83,7 @@ class SensorLoopManager():
                 moisture=moisture or 0, 
                 infrared=read_pir() or False,
                 battery=pins.solveBatteryLevel() or 0,
-                extra={"moisture_raw": moisture_raw}
+                extra={"moisture_raw": moisture_raw, "last_watered": self.last_watered}
             )
             
             ### Send the result for other modules to see.
@@ -99,18 +103,20 @@ class SensorLoopManager():
     
     async def water(self):
         print("Watering!")
+        now = time_manager.getRealLocaltime()
+        self.last_watered = logger._formatDate(now) + " " + logger._formatTime(now)
         logger.logInfo("INFO", "Watering for {} seconds".format(cfg.get("water_time")))
-        pins.RELAY_SIGNAL.low()
+        pins.setRelayState(True)
         await asyncio.sleep(cfg.get("water_time"))
         logger.logInfo("INFO", "Watering finished")
-        pins.RELAY_SIGNAL.high()
+        pins.setRelayState(False)
 
     async def waterManual(self, duration: int):
         logger.logInfo("INFO", "Watering for {} seconds".format(duration))
-        pins.RELAY_SIGNAL.low()
+        pins.setRelayState(True)
         await asyncio.sleep(duration)
         logger.logInfo("INFO", "Watering finished")
-        pins.RELAY_SIGNAL.high()
+        pins.setRelayState(False)
 
     async def pausePeriod(self):
         self.water_allowed = False

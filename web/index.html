@@ -19,16 +19,23 @@
         
         <div id="content">
             <div v-scope="Section('Live', 'See sensor readings in realtime.', 't_sect_live')"></div>
-            <div v-scope="Section('Monitor', 'Monitor statistics over time.', 't_sect_monitor')"></div>
+            <div v-scope="Section('Data', 'Download or view data.', 't_sect_monitor')"></div>
             <div v-scope="Section('Config', 'Change how your automatic irrgation will work.', 't_sect_config')"></div>
             <div v-scope="Section('Device', 'View current device information.', 't_sect_device')"></div>    
         </div>
 
         <template id="t_sect_live">
             <div id="vue_live" @vue:mounted="init()">
-                Soil Moisture: <b>{{ toPercent(data.moisture) + "%" }}</b> <br>
-                Temperature: <b>{{ data.temperature + "°C" }}</b> <br>
-                Humidity: <b>{{ data.humidity + "%" }}</b> <br>
+                <div v-bind:style="toColor('moisture', data.moisture)">
+                    Soil Moisture: <b>{{ toPercent(data.moisture) + "%" }}</b>
+                </div>
+                <div v-bind:style="toColor('temperature', data.temperature)">
+                    Temperature: <b>{{ data.temperature + "°C" }}</b>
+                </div>
+                <div v-bind:style="toColor('humidity', data.humidity)">
+                    Humidity: <b>{{ data.humidity + "%" }}</b> 
+                </div>
+                
                 <!--Motion Detection: {{ toReadablePIR(data.infrared) }} <br>
                 Battery level: {{ toPercent(data.battery) + "%" }} <br>
                 <small> Battery level readings are a rough estimate and do not always reflect actual battery level.</small>-->
@@ -36,7 +43,9 @@
         </template>
 
         <template id="t_sect_monitor">
-            Graph: <br>
+            <div v-if="extradata.last_watered">
+                Last watered: {{ extradata.last_watered }}
+            </div>
             <!--
             <div v-if="loglist.loaded">
                 <select v-model="selection.monitor_day" @>
@@ -56,22 +65,28 @@
                 </div>
             </div>
             -->
-            <br>
-            Or view the logs (this will load another page): <br>
-            <a href="/data/logview">View now</a> <br>
-            <a href="/data/logdownload" target="_blank">Download .csv</a> (can be opened in excel) <br>
+            <b>Download or view logs:</b> <br>
+            <a href="/data/logview">View today's logs</a> <br>
+            When the page is opened, you may save it using Ctrl+S
+            <br><br>
+            <small>
+                You may also access all your logs by removing the SD card<br>
+                <b>Please ensure your device is turned off as you do this!</b>
+            </small>
             
         </template>
 
         <template id="t_sect_device">
-            See device info here
+            Coming soon <br>
+            Visit <a href="https://github.com/kelly-neil/pico-automatic-irrigation">https://github.com/kelly-neil/pico-automatic-irrigation</a>
+            for tutorial and source code.
         </template>
 
         <template id="t_sect_config">
             Edit your configuration in the text field below. Once you're done, hit "Save" and your changes will be applied. <br>
-            <textarea v-model="cfg" rows="30"></textarea>
+            <textarea v-model="cfg" rows="30" cols="80"></textarea>
+            <button @click="saveConfig()">Save</button>
         </template>
-
 
         <template id="t_section">
             <div v-scope="{expand: true, test: 'Hello'}" vonclick="expand=!expand">
