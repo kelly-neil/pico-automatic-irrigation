@@ -2,7 +2,7 @@ import sensors_manager
 import time_manager
 import sd
 import os
-from utils import files
+from lib import files
 
 LOG_DIR = const("/sd/log")
 

@@ -47,5 +47,5 @@ def start(ignored=False):
             raise e
 
 def isAvailable() -> bool:
-    from utils import files
+    from lib import files
     return files.dirExists(MOUNT_POINT)

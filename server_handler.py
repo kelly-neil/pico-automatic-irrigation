@@ -1,8 +1,8 @@
 import os
 import gc
-from phew import connect_to_wifi, server
-import phew
-import phew.server
+from lib.phew import connect_to_wifi, server
+from lib import phew
+from lib import phew.server
 import json_handler
 import asyncio
 import time
