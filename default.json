@@ -4,6 +4,6 @@
     "water_threshold": 0.3,
     "water_pause": 120,
     "wifi_creds": [
-        ["dummy", "dummy"]
+        ["ssid", "password"]
     ]
 }
